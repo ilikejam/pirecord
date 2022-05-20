@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Record audio from an ALSA device in 1hr chunks
+# wav files generated like:
+#  $DIR/recording.X.xYY.wav
+#   X = recording session index
+#   YY = 00, 01, 02 ... increasing each hour
+# (c) David Stark 2022
+
+set -e # Do not remove!
+set -x
+set -o pipefail
+
+# ----- Edit me -----
+CHANNELS=2
+RATE=48000
+FORMAT=S24_3LE       # arecord '-f' format
+BITDEPTH=24          # sox '-b' - match FORMAT above
+STYPE=signed-integer # sox '-e' - match FORMAT above
+DEVICE="pipewire"    # ALSA device name
+DIR="/audio"
+# -----   End   -----
+
+HOURBYTES=$(( (BITDEPTH / 8) * CHANNELS * RATE * 3600 ))
+PATH=/usr/bin
+INDEX_FILE=/etc/record_index
+
+# Sanity
+command -v arecord
+command -v buffer
+command -v sox
+mountpoint "$DIR"
+
+#Get last index and increment
+[[ -f $INDEX_FILE ]] && INDEX="$(cat "$INDEX_FILE")" || INDEX=0
+[[ $INDEX =~ ^[0-9]+$ ]]
+(( ++INDEX ))
+echo "$INDEX" > "$INDEX_FILE"
+
+# GO!
+cd "$DIR"
+arecord -t raw -c "$CHANNELS" -r "$RATE" -f "$FORMAT" -D "$DEVICE" | \
+    buffer -p0 -m10m | \
+    split -d -b$HOURBYTES --filter="sox -V3 -t raw -r $RATE -c $CHANNELS -b $BITDEPTH -e $STYPE -L - --comment 'pirecord' recording.$INDEX.\${FILE}.wav" -

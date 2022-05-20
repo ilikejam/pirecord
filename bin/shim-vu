@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+# A script to display stereo audio peak dB level from an audio capture device on
+# an LED Shim in near real-time
+#  https://shop.pimoroni.com/products/led-shim
+# Display 'grows' from the middle of the pixel array for left and right channels
+# as volume increases
+# Low volume LEDs are white / grey
+# High volume LEDs are orange
+# Last (outer) LEDs are red for 0dBfs/clipping
+
+# Strongly recommend using a sound server like PulseAudio or PipeWire, otherwise
+# you'll be dealing with exclusing access to ALSA devices named things like:
+# snd_rpi_hifiberry_dacplusadcpro: HiFiBerryDAC+ADCProHiFi multicodec-0 (hw:0,0)
+# or dsnoop devices that can only do 16bit at 48k.
+
+# (c) David Stark 2022
+
+import audioop
+import math
+
+import ledshim
+import pyaudio
+
+
+# ----- Edit these to taste -----
+DEVICE = "pipewire"  # pyaudio/PortAudio device name
+DB_PER_PIXEL = 2  # dB volume difference between pixels
+ORANGE_LIMIT = -10  # White - orange transition dB volume
+UPDATES_PER_SEC = 5  # Display refresh rate per-second (approx)
+FORMAT = pyaudio.paInt16  # 16 bit is more than enough here
+RATE = 48000  # 48k
+OFF = (0, 0, 0)  # Pixel off
+WHITE = (85, 85, 85)  # Low audio pixels
+ORANGE = (187, 118, 0)  # High audio pixels
+RED = (255, 0, 0)  # Clipping audio pixel (0dB full scale)
+# -----         End         -----
+
+
+CHANNELS = 2  # Stereo only!
+BLOCK = int(RATE / UPDATES_PER_SEC)
+SAMPLE_WIDTH = pyaudio.get_sample_size(FORMAT)
+SAMPLE_VALUES = 2 ** (SAMPLE_WIDTH * 8)
+SAMPLE_MAX = (SAMPLE_VALUES / 2) - 1
+NEG_INF = -759  #  32bit float min dB - 1
+PIXEL_DBS = [0 - (DB_PER_PIXEL * x) for x in range(int(ledshim.NUM_PIXELS / 2))]
+ODD_PIXELS = ledshim.NUM_PIXELS % 2 == 1  # Is this a thing?
+
+
+# Return an (r,g,b) tuple from a dB level
+def get_colour(pixel_db):
+    if pixel_db == 0:
+        return RED
+    if pixel_db > ORANGE_LIMIT:
+        return ORANGE
+    return WHITE
+
+
+p = pyaudio.PyAudio()
+
+# Find the numeric ALSA device index from the name
+for i in range(p.get_device_count()):
+    if p.get_device_info_by_index(i).get("name") == DEVICE:
+        sc_index = i
+        break
+
+stream = p.open(
+    format=FORMAT,
+    channels=CHANNELS,
+    rate=RATE,
+    input=True,
+    frames_per_buffer=BLOCK,
+    input_device_index=sc_index,
+)
+
+while True:
+    data = stream.read(BLOCK, exception_on_overflow=False)
+    max_l = audioop.max(audioop.tomono(data, SAMPLE_WIDTH, 1, 0), SAMPLE_WIDTH)
+    max_r = audioop.max(audioop.tomono(data, SAMPLE_WIDTH, 0, 1), SAMPLE_WIDTH)
+    # Silent blocks are -infinite dB because maths
+    if max_l == 0:
+        db_l = NEG_INF
+    else:
+        db_l = 20 * math.log10(max_l / SAMPLE_MAX)
+    if max_r == 0:
+        db_r = NEG_INF
+    else:
+        db_r = 20 * math.log10(max_r / SAMPLE_MAX)
+    pixels_r = [get_colour(x) if db_r >= x else OFF for x in PIXEL_DBS]
+    pixels_l = [get_colour(x) if db_l >= x else OFF for x in PIXEL_DBS]
+    pixels_r.reverse()
+    if ODD_PIXELS:
+        pixels = pixels_l + [OFF] + pixels_r
+    else:
+        pixels = pixels_l + pixels_r
+    for p in range(ledshim.NUM_PIXELS):
+        ledshim.set_pixel(p, *pixels[p])
+    ledshim.show()

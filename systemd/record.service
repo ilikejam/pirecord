@@ -1,0 +1,13 @@
+[Unit]
+Description=Record audio
+After=pipewire-media-session.service
+Requires=pipewire-media-session.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/record
+Environment="PIPEWIRE_RUNTIME_DIR=/tmp"
+Restart=always
+
+[Install]
+WantedBy=default.target

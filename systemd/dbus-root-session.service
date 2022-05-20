@@ -1,0 +1,12 @@
+[Unit]
+Description=Root dbus session
+
+[Service]
+Type=forking
+ExecStartPre=/usr/bin/rm -f -- /tmp/dbus-env
+ExecStart=/usr/bin/dbus-launch
+Restart=on-failure
+StandardOutput=file:/tmp/dbus-env
+
+[Install]
+WantedBy=default.target

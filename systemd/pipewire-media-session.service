@@ -1,0 +1,21 @@
+[Unit]
+Description=PipeWire Media Session Manager
+After=pipewire.service
+BindsTo=pipewire.service
+
+[Service]
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+NoNewPrivileges=yes
+RestrictNamespaces=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+Type=simple
+ExecStart=/usr/bin/pipewire-media-session
+Restart=on-failure
+Environment="PIPEWIRE_RUNTIME_DIR=/tmp"
+EnvironmentFile=/tmp/dbus-env
+
+[Install]
+WantedBy=pipewire.service
+Alias=pipewire-session-manager.service

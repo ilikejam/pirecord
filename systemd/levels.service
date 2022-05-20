@@ -1,0 +1,19 @@
+[Unit]
+Description=Set record volumes
+After=pipewire-media-session.service
+Requires=pipewire-media-session.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/amixer -D pipewire -- sset Capture '100%'
+ExecStart=/usr/bin/amixer -D hw:0 -- sset ADC '-7.5db'
+ExecStart=/usr/bin/sleep 2
+ExecStart=/usr/bin/amixer -D pipewire -- sset Capture '100%'
+ExecStart=/usr/bin/amixer -D hw:0 -- sset ADC '-7.5db'
+Environment="PIPEWIRE_RUNTIME_DIR=/tmp"
+StartLimitInterval=0
+RestartSec=1
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

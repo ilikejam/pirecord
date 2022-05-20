@@ -1,0 +1,78 @@
+Requires:
+- Raspberry pi with a 40-pin GPIO header
+- Hifiberry DAC+ ADC Pro
+- 16+GB MicroSD
+
+Notes:
+Yes, this should all be in an ansible role, but there's a whole Debian stable -> testing thing going on, reboots, blah blah. So just copypasta it old-style.
+
+Install Raspberry Pi OS Lite (32 bit is fine)
+Configure a user and SSH, unless you like typing at a console for an hour.
+
+GO!
+
+Log in.
+
+sudo su -
+
+AS ROOT:
+
+rm /etc/systemd/system/getty@tty1.service.d/autologin.conf
+
+vi /boot/config.txt
+< Add/edit to make the following apply >
+-----
+dtparam=i2c_arm=on
+dtparam=audio=off
+dtoverlay=vc4-kms-v3d,audio=off
+dtoverlay=hifiberry-dacplusadcpro
+-----
+
+echo 'i2c-dev' >> /etc/modules
+
+echo 'export PIPEWIRE_RUNTIME_DIR=/tmp' >> /etc/profile
+
+sed -i 's/bullseye/testing/' /etc/apt/sources.list
+export DEBIAN_FRONTEND=noninteractive
+apt -y update # <Accept the defaults for login.defs>
+apt -y remove cron rsyslog avahi-daemon wpasupplicant man man-db bluez javascript-common triggerhappy cifs-utils # Anything else?
+apt -y upgrade && apt -y autoremove
+apt -y install python3-pip python3-pyaudio buffer python3-smbus dbus-x11 pipewire pipewire-audio-client-libraries pipewire-media-session sox
+
+pip install ledshim
+
+mkdir -p /etc/pipewire/media-session.d/
+touch /etc/pipewire/media-session.d/with-alsa
+cp /usr/share/doc/pipewire/examples/alsa.conf.d/99-pipewire-default.conf /etc/alsa/conf.d/
+
+< Copy <repo>/bin/* to /usr/local/bin >
+chmod +x /usr/local/bin/*
+
+mkdir /audio
+
+dd if=/dev/zero of=/audio.img bs=1M count=10240
+mkfs -t vfat /audio.img
+mount /audio.img /audio
+echo '/audio.img /audio vfat defaults,sync 1 1' >> /etc/fstab
+
+< Copy <repo>/systemd/* to /etc/systemd/system >
+systemctl enable dbus-root-session.service
+systemctl enable pipewire.service
+systemctl enable pipewire-media-session.service
+systemctl enable shim-vu.service
+systemctl enable levels.service
+systemctl enable record.service
+
+dphys-swapfile swapoff
+dphys-swapfile uninstall
+
+systemctl mask dbus.service dphys-swapfile.service
+
+systemctl -t timer --plain --no-legend --no-pager | awk '{print $1}' | xargs -L1 systemctl mask
+
+< Ctrl-D >
+
+AS (pi?) USER:
+systemctl --user mask dbus.service pipewire.service
+
+< Reboot >
