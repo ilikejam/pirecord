@@ -4,12 +4,12 @@ Requires:
 - 16+GB MicroSD
 
 Notes:
-Yes, this should all be in an ansible role, but there's a whole Debian stable -> testing thing going on, reboots, blah blah. So just copypasta it old-style.
+Yes, this should all be in an ansible role, but there's a whole Debian stable -> testing thing going on, reboots, gparted blah blah. So just copypasta old-style.
+
+Process:
 
 Install Raspberry Pi OS Lite (32 bit is fine)
 Configure a user and SSH, unless you like typing at a console for an hour.
-
-GO!
 
 Log in.
 
@@ -50,10 +50,7 @@ chmod +x /usr/local/bin/*
 
 mkdir /audio
 
-dd if=/dev/zero of=/audio.img bs=1M count=10240
-mkfs -t vfat /audio.img
-mount /audio.img /audio
-echo '/audio.img /audio vfat defaults,sync 1 1' >> /etc/fstab
+echo '/dev/sda3 /audio vfat defaults,sync 1 1' >> /etc/fstab
 
 < Copy <repo>/systemd/* to /etc/systemd/system >
 systemctl enable dbus-root-session.service
@@ -75,4 +72,6 @@ systemctl -t timer --plain --no-legend --no-pager | awk '{print $1}' | xargs -L1
 AS (pi?) USER:
 systemctl --user mask dbus.service pipewire.service
 
-< Reboot >
+< Shut down >
+
+On a desk/laptop with gparted, shrink the root partition and create a fat32 partition to hold recordings.
