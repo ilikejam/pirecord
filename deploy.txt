@@ -9,7 +9,7 @@ Yes, this should all be in an ansible role, but there's a whole Debian stable ->
 Process:
 
 Install Raspberry Pi OS Lite (32 bit is fine)
-Configure a user and SSH, unless you like typing at a console for an hour.
+Configure a user and SSH (and wifi), unless you like typing at a console for an hour.
 
 Log in.
 
@@ -35,14 +35,13 @@ echo 'export PIPEWIRE_RUNTIME_DIR=/tmp' >> /etc/profile
 sed -i 's/bullseye/testing/' /etc/apt/sources.list
 export DEBIAN_FRONTEND=noninteractive
 apt -y update # <Accept the defaults for login.defs>
-apt -y remove cron rsyslog avahi-daemon wpasupplicant man man-db bluez javascript-common triggerhappy cifs-utils # Anything else?
+apt -y remove cron rsyslog man man-db bluez javascript-common triggerhappy cifs-utils # Anything else?
 apt -y upgrade && apt -y autoremove
 apt -y install python3-pip python3-pyaudio buffer python3-smbus dbus-x11 pipewire pipewire-audio-client-libraries pipewire-media-session sox
 
 pip install ledshim
 
-mkdir -p /etc/pipewire/media-session.d/
-touch /etc/pipewire/media-session.d/with-alsa
+touch /usr/share/pipewire/media-session.d/with-alsa
 cp /usr/share/doc/pipewire/examples/alsa.conf.d/99-pipewire-default.conf /etc/alsa/conf.d/
 
 < Copy <repo>/bin/* to /usr/local/bin >
