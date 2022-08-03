@@ -30,13 +30,17 @@ dtoverlay=hifiberry-dacplusadcpro
 
 echo 'i2c-dev' >> /etc/modules
 
+echo 'blacklist snd_soc_hdmi_codec' > /etc/modprobe.d/blacklist-snd_soc_hdmi_codec.conf
+
 echo 'export PIPEWIRE_RUNTIME_DIR=/tmp' >> /etc/profile
 
 sed -i 's/bullseye/testing/' /etc/apt/sources.list
 export DEBIAN_FRONTEND=noninteractive
-apt -y update # <Accept the defaults for login.defs>
-apt -y remove cron rsyslog man man-db bluez javascript-common triggerhappy cifs-utils # Anything else?
-apt -y upgrade && apt -y autoremove
+apt -y update
+apt -y remove cron rsyslog man man-db bluez javascript-common triggerhappy # Anything else?
+apt -y autoremove
+apt -y upgrade # <Accept the defaults for login.defs>
+apt -y autoremove
 apt -y install python3-pip python3-pyaudio buffer python3-smbus dbus-x11 pipewire pipewire-audio-client-libraries pipewire-media-session sox
 
 pip install ledshim
@@ -46,16 +50,18 @@ cp /usr/share/doc/pipewire/examples/alsa.conf.d/99-pipewire-default.conf /etc/al
 
 < Copy <repo>/bin/* to /usr/local/bin >
 chmod +x /usr/local/bin/*
+chown root:root /usr/local/bin/*
 
 mkdir /audio
 
 echo '/dev/sda3 /audio vfat defaults,sync 1 1' >> /etc/fstab
 
 < Copy <repo>/systemd/* to /etc/systemd/system >
+chown root:root /etc/systemd/system/*
 systemctl enable dbus-root-session.service
 systemctl enable pipewire.service
 systemctl enable pipewire-media-session.service
-systemctl enable shim-vu.service
+systemctl enable shim.service
 systemctl enable levels.service
 systemctl enable record.service
 
@@ -71,6 +77,4 @@ systemctl -t timer --plain --no-legend --no-pager | awk '{print $1}' | xargs -L1
 AS (pi?) USER:
 systemctl --user mask dbus.service pipewire.service
 
-< Shut down >
-
-On a desk/laptop with gparted, shrink the root partition and create a fat32 partition to hold recordings.
+< reboot >
