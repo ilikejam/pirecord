@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
-# A script to display stereo audio peak dB level from an audio capture device on
-# an LED Shim in near real-time
-#  https://shop.pimoroni.com/products/led-shim
-# Display 'grows' from the middle of the pixel array for left and right channels
-# as volume increases
-# Low volume LEDs are white / grey
-# High volume LEDs are orange
-# Last (outer) LEDs are red for 0dBfs/clipping
+# A script to display stereo audio peak dB level from an audio capture device as
+# text to stdout
 
 # Strongly recommend using a sound server like PulseAudio or PipeWire, otherwise
 # you'll be dealing with exclusing access to ALSA devices named things like:
@@ -18,7 +12,6 @@
 import audioop
 import math
 
-import ledshim
 import pyaudio
 
 # ----- Edit these to taste -----
@@ -28,10 +21,6 @@ ORANGE_LIMIT = -10  # White - orange transition dB volume
 UPDATES_PER_SEC = 5  # Display refresh rate per-second (approx)
 FORMAT = pyaudio.paInt16  # 16 bit is more than enough here
 RATE = 48000  # 48k
-OFF = (0, 0, 0)  # Pixel off
-WHITE = (85, 85, 85)  # Low audio pixels
-ORANGE = (187, 118, 0)  # High audio pixels
-RED = (255, 0, 0)  # Clipping audio pixel (0dB full scale)
 # -----         End         -----
 
 
@@ -41,17 +30,6 @@ SAMPLE_WIDTH = pyaudio.get_sample_size(FORMAT)
 SAMPLE_VALUES = 2 ** (SAMPLE_WIDTH * 8)
 SAMPLE_MAX = (SAMPLE_VALUES / 2) - 1
 NEG_INF = -759  #  32bit float min dB - 1
-PIXEL_DBS = [0 - (DB_PER_PIXEL * x) for x in range(int(ledshim.NUM_PIXELS / 2))]
-ODD_PIXELS = ledshim.NUM_PIXELS % 2 == 1  # Is this a thing?
-
-
-# Return an (r,g,b) tuple from a dB level
-def get_colour(pixel_db):
-    if pixel_db == 0:
-        return RED
-    if pixel_db > ORANGE_LIMIT:
-        return ORANGE
-    return WHITE
 
 
 p = pyaudio.PyAudio()
@@ -84,13 +62,4 @@ while True:
         db_r = NEG_INF
     else:
         db_r = 20 * math.log10(max_r / SAMPLE_MAX)
-    pixels_r = [get_colour(x) if db_r >= x else OFF for x in PIXEL_DBS]
-    pixels_l = [get_colour(x) if db_l >= x else OFF for x in PIXEL_DBS]
-    pixels_r.reverse()
-    if ODD_PIXELS:
-        pixels = pixels_l + [OFF] + pixels_r
-    else:
-        pixels = pixels_l + pixels_r
-    for p in range(ledshim.NUM_PIXELS):
-        ledshim.set_pixel(p, *pixels[p])
-    ledshim.show()
+    print(f"{db_l:07.2f} L DB R {db_r:07.2f}")

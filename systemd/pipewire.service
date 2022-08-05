@@ -5,7 +5,7 @@ After=dbus-root-session.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/pipewire
+ExecStart=/usr/bin/nice --20 /usr/bin/ionice -c1 -n7 /usr/bin/chrt 99 /usr/bin/pipewire
 Restart=on-failure
 Environment="PIPEWIRE_RUNTIME_DIR=/tmp"
 EnvironmentFile=/tmp/dbus-env

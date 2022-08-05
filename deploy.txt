@@ -17,6 +17,11 @@ sudo su -
 
 AS ROOT:
 
+< Copy <repo>/bin/* to /usr/local/bin >
+< Copy <repo>/systemd/* to /etc/systemd/system >
+chmod +x /usr/local/bin/*
+chown root:root /usr/local/bin/* /etc/systemd/system/*
+
 rm /etc/systemd/system/getty@tty1.service.d/autologin.conf
 
 vi /boot/config.txt
@@ -26,10 +31,10 @@ dtparam=i2c_arm=on
 dtparam=audio=off
 dtoverlay=vc4-kms-v3d,audio=off
 dtoverlay=hifiberry-dacplusadcpro
+dtoverlay=disable-bt
 -----
 
 echo 'i2c-dev' >> /etc/modules
-
 echo 'blacklist snd_soc_hdmi_codec' > /etc/modprobe.d/blacklist-snd_soc_hdmi_codec.conf
 
 echo 'export PIPEWIRE_RUNTIME_DIR=/tmp' >> /etc/profile
@@ -37,40 +42,42 @@ echo 'export PIPEWIRE_RUNTIME_DIR=/tmp' >> /etc/profile
 sed -i 's/bullseye/testing/' /etc/apt/sources.list
 export DEBIAN_FRONTEND=noninteractive
 apt -y update
-apt -y remove cron rsyslog man man-db bluez javascript-common triggerhappy # Anything else?
+apt -y purge cron rsyslog man man-db bluez triggerhappy whiptail vcdbg # Anything else?
 apt -y autoremove
 apt -y upgrade # <Accept the defaults for login.defs>
 apt -y autoremove
-apt -y install python3-pip python3-pyaudio buffer python3-smbus dbus-x11 pipewire pipewire-audio-client-libraries pipewire-media-session sox
+apt -y install --no-install-recommends alsa-utils python3-pip python3-pyaudio buffer python3-smbus dbus-x11 pipewire pipewire-audio-client-libraries pipewire-media-session sox nfs-kernel-server
 
 pip install ledshim
+
+dphys-swapfile swapoff
+dphys-swapfile uninstall
 
 touch /usr/share/pipewire/media-session.d/with-alsa
 cp /usr/share/doc/pipewire/examples/alsa.conf.d/99-pipewire-default.conf /etc/alsa/conf.d/
 
-< Copy <repo>/bin/* to /usr/local/bin >
-chmod +x /usr/local/bin/*
-chown root:root /usr/local/bin/*
+< Insert USB stick, check partition table, edit if necessary >
 
+mkfs.vfat /dev/sda1
 mkdir /audio
+echo '/audio *(rw,insecure,all_squash,anonuid=0,anongid=0)' >> /etc/exports
+echo '/dev/sda1 /audio vfat defaults,sync 1 1' >> /etc/fstab
+mount -a
 
-echo '/dev/sda3 /audio vfat defaults,sync 1 1' >> /etc/fstab
+systemctl mask dbus.service dphys-swapfile.service
+systemctl -t timer --plain --no-legend --no-pager | awk '{print $1}' | xargs -L1 systemctl mask
 
-< Copy <repo>/systemd/* to /etc/systemd/system >
-chown root:root /etc/systemd/system/*
+mkdir -p /etc/systemd/system/dhcpcd.service.d
+echo -e '[Service]\nLogLevelMax=3' > /etc/systemd/system/dhcpcd.service.d/override.conf
+
 systemctl enable dbus-root-session.service
 systemctl enable pipewire.service
 systemctl enable pipewire-media-session.service
 systemctl enable shim.service
 systemctl enable levels.service
 systemctl enable record.service
+systemctl enable nfs-server.service
 
-dphys-swapfile swapoff
-dphys-swapfile uninstall
-
-systemctl mask dbus.service dphys-swapfile.service
-
-systemctl -t timer --plain --no-legend --no-pager | awk '{print $1}' | xargs -L1 systemctl mask
 
 < Ctrl-D >
 

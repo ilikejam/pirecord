@@ -5,7 +5,7 @@ Requires=pipewire-media-session.service
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/record
+ExecStart=/usr/bin/nice --20 /usr/bin/ionice -c1 -n7 /usr/bin/chrt 99 /usr/local/bin/record
 Environment="PIPEWIRE_RUNTIME_DIR=/tmp"
 Restart=always
 
