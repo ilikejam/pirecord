@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+alsamixer -c sndrpihifiberry -V capture
