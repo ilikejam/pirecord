@@ -4,7 +4,7 @@ Requires:
 - 16+GB MicroSD
 
 Notes:
-Yes, this should all be in an ansible role, but there's a whole Debian stable -> testing thing going on, reboots, gparted blah blah. So just copypasta old-style.
+Yes, this should all be in an ansible role, but there's a whole Debian stable -> testing thing going on, reboots, blah blah. So just copypasta old-style.
 
 Process:
 
@@ -12,6 +12,10 @@ Install Raspberry Pi OS Lite (32 bit is fine)
 Configure a user and SSH (and wifi), unless you like typing at a console for an hour.
 
 Log in.
+
+AS USER:
+
+systemctl --user mask dbus.service pipewire.service
 
 sudo su -
 
@@ -22,19 +26,18 @@ AS ROOT:
 chmod +x /usr/local/bin/*
 chown root:root /usr/local/bin/* /etc/systemd/system/*
 
-rm /etc/systemd/system/getty@tty1.service.d/autologin.conf
-
 vi /boot/config.txt
 < Add/edit to make the following apply >
 -----
-dtparam=i2c_arm=on
 dtparam=audio=off
 dtoverlay=vc4-kms-v3d,audio=off
 dtoverlay=hifiberry-dacplusadcpro
 dtoverlay=disable-bt
 -----
 
-echo 'i2c-dev' >> /etc/modules
+dphys-swapfile swapoff
+dphys-swapfile uninstall
+
 echo 'blacklist snd_soc_hdmi_codec' > /etc/modprobe.d/blacklist-snd_soc_hdmi_codec.conf
 
 echo 'export PIPEWIRE_RUNTIME_DIR=/tmp' >> /etc/profile
@@ -42,16 +45,12 @@ echo 'export PIPEWIRE_RUNTIME_DIR=/tmp' >> /etc/profile
 sed -i 's/bullseye/testing/' /etc/apt/sources.list
 export DEBIAN_FRONTEND=noninteractive
 apt -y update
-apt -y purge cron rsyslog man man-db bluez triggerhappy whiptail vcdbg # Anything else?
-apt -y autoremove
+apt -y purge cron rsyslog man man-db bluez triggerhappy whiptail vcdbg dphys-swapfile g++ gcc v4l-utils # Anything else?
 apt -y upgrade # <Accept the defaults for login.defs>
+apt -y install --no-install-recommends alsa-utils python3-pip python3-pyaudio buffer dbus-x11 pipewire pipewire-audio-client-libraries pipewire-media-session sox nfs-kernel-server
 apt -y autoremove
-apt -y install --no-install-recommends alsa-utils python3-pip python3-pyaudio buffer python3-smbus dbus-x11 pipewire pipewire-audio-client-libraries pipewire-media-session sox nfs-kernel-server
 
-pip install ledshim
-
-dphys-swapfile swapoff
-dphys-swapfile uninstall
+rm /etc/systemd/system/getty@tty1.service.d/autologin.conf
 
 touch /usr/share/pipewire/media-session.d/with-alsa
 cp /usr/share/doc/pipewire/examples/alsa.conf.d/99-pipewire-default.conf /etc/alsa/conf.d/
@@ -61,19 +60,17 @@ cp /usr/share/doc/pipewire/examples/alsa.conf.d/99-pipewire-default.conf /etc/al
 mkfs.vfat /dev/sda1
 mkdir /audio
 echo '/audio *(rw,insecure,all_squash,anonuid=0,anongid=0)' >> /etc/exports
-echo '/dev/sda1 /audio vfat defaults,sync 1 1' >> /etc/fstab
-mount -a
 
-systemctl mask dbus.service dphys-swapfile.service
 systemctl -t timer --plain --no-legend --no-pager | awk '{print $1}' | xargs -L1 systemctl mask
 
 mkdir -p /etc/systemd/system/dhcpcd.service.d
 echo -e '[Service]\nLogLevelMax=3' > /etc/systemd/system/dhcpcd.service.d/override.conf
+mkdir -p /etc/systemd/system/avahi-daemon.service.d
+echo -e '[Service]\nLogLevelMax=5' > /etc/systemd/system/avahi-daemon.service.d/override.conf
 
 systemctl enable dbus-root-session.service
 systemctl enable pipewire.service
 systemctl enable pipewire-media-session.service
-systemctl enable shim.service
 systemctl enable levels.service
 systemctl enable record.service
 systemctl enable nfs-server.service
@@ -82,6 +79,5 @@ systemctl enable nfs-server.service
 < Ctrl-D >
 
 AS (pi?) USER:
-systemctl --user mask dbus.service pipewire.service
 
 < reboot >

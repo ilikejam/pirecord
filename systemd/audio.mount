@@ -1,0 +1,11 @@
+[Unit]
+Description=Audio recordings disk mount
+
+[Mount]
+What=/dev/sda1
+Where=/audio
+Type=vfat
+Options=defaults,sync
+
+[Install]
+WantedBy=multi-user.target
